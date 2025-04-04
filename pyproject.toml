@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "BlyncsySFT"
+version = "0.1.0"
+authors = [
+    {name = "Sonny Jones", email = "sonny.jones@utah.edu"},
+    {name = "Anthony Le", email = "anthony.le@utah.edu"},
+    {name = "Rohit Raj", email = "rohitrraj284@gmail.com"}
+]
+maintainers = [
+    {name = "Sonny Jones", email = "sonny.jones@utah.edu"}
+]
+description = "Supervised Fine-Tuning Package for Blynscy"
+readme = {file = "README.md", content-type = "text/markdown"}
+dependencies = [
+    'torch >= 2.6.0', 
+    'torchvision >= 2.6.0', 
+    'numpy >= ',
+    'tqdm >= 4.67.1', 
+    'pycocotools >= 2.0.8',
+    'opencv-python >= 4.11.00.86',
+    'click >= 8.1.3',
+    'PyYAML' >= 6.0,
+    'scikit-learn >= 0.23.2',
+    'python-dotenv >= 1.1.0',
+    'albumentations >= 2.0.5'
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+requires_python = '>=3.6'
+
+[project.scripts]
+yourpackage = "BlyncsySFT.cli:cli"
