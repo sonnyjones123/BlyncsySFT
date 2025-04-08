@@ -1,3 +1,5 @@
+import torch
+
 def reformat_predictions(predictions, format: str = 'coco'):
     """
     Reformats predictions from model. Current formatting functions:
