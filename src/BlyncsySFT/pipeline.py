@@ -62,6 +62,10 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     norm_mean = cfg.get('IMAGE_MEAN', [0.485, 0.456, 0.406])
     norm_std = cfg.get('IMAGE_STD', [0.229, 0.224, 0.225])
 
+    # Paths
+    train_image_path = (Path(project_dir) / cfg.get('TRAIN_IMAGE_PATH', "images/train"))
+    train_annot_path = (Path(project_dir) / cfg.get('TRAIN_ANNOT_PATH', "annotations/train.json"))
+
     # Optional
     state_dict_path = cfg.get('STATE_DICT_PATH', None)
 
@@ -80,11 +84,6 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     # Check if a CUDA-enabled GPU is available; otherwise, default to using the CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-
-    # Loading training and validation data from location
-    train_image_path = (Path(project_dir) / "images" / "train")
-    #train_annot_path = (Path(project_dir) / "annotations" / "train.json")
-    train_annot_path = (Path(project_dir) / "annotation_files" / "train_filtered.json")
 
     # Define transformations (apply them to the image)
     transform = transforms.Compose([
@@ -303,14 +302,13 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
     norm_mean = cfg.get('IMAGE_MEAN', [0.485, 0.456, 0.406])
     norm_std = cfg.get('IMAGE_STD', [0.229, 0.224, 0.225])
 
+    # Paths
+    train_image_path = (Path(project_dir) / cfg.get('TRAIN_IMAGE_PATH', "images/train"))
+    train_annot_path = (Path(project_dir) / cfg.get('TRAIN_ANNOT_PATH', "annotations/train.json"))
+
     # Check if a CUDA-enabled GPU is available; otherwise, default to using the CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
-
-    # Loading training and validation data from location
-    train_image_path = (Path(project_dir) / "images" / "train")
-    #train_annot_path = (Path(project_dir) / "annotations" / "train.json")
-    train_annot_path = (Path(project_dir) / "annotation_files" / "train_filtered.json")
 
     # Define transformations (apply them to the image)
     transform = transforms.Compose([
@@ -507,10 +505,9 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
-    # Setting validation path
-    val_image_path = (Path(project_dir) / "images" / "validation")
-    #val_annot_path = (Path(project_dir) / "annotations" / "validation.json")
-    val_annot_path = (Path(project_dir) / "annotation_files" / "validation_modified.json")
+    # Paths
+    val_image_path = (Path(project_dir) / cfg.get('VAL_IMAGE_PATH', "images/validation"))
+    val_annot_path = (Path(project_dir) / cfg.get('VAL_ANNOT_PATH', "annotations/validation.json"))
 
     # Define transformations (apply them to the image)
     transform = transforms.Compose([
