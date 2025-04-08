@@ -1,4 +1,5 @@
 import time
+import json
 import logging
 from tqdm import tqdm
 import torch
@@ -8,11 +9,13 @@ from torchvision.datasets import CocoDetection
 from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from pycocotools.coco import COCO
-from models import custom_faster_rcnn, focal_loss_faster_rcnn
+from torch.optim.lr_scheduler import StepLR
+from models import custom_faster_rcnn
 from preprocessing import custom_normalization
 from format import format_target, reformat_predictions
 from eval import compute_mAP
 from pathlib import Path
+from augment import createAugmentedData, augmentation_types
 
 def run_auto_training_pipeline(project_dir, cfg, verbose):
     """
@@ -45,12 +48,26 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     alpha = cfg.get('ALPHA', 0.25)
     gamma = cfg.get('GAMMA', 2.0)
 
+    # Augmentation Parameters
+    use_augmentations = cfg.get("USE_AUGMENTATIONS", False)
+    shuffle_dataset = cfg.get('SHUFFLE_DATASET', True)
+    augmentation_split = cfg.get('AUGMENTATION_SPLIT', 0.5)
+    subset_size = cfg.get('SUBSET_SIZE', None)
+    subset_size = int(subset_size) if subset_size is not None else None
+    mixup_lambda = cfg.get('MIXUP_LAMBDA', 0.2)
+    random_seed = cfg.get('RANDOM_SEED', None)
+    set_random_seed = cfg.get('SET_RANDOM_SEED', False)
+
+    # Custom Transforms
+    norm_mean = cfg.get('IMAGE_MEAN', [0.485, 0.456, 0.406])
+    norm_std = cfg.get('IMAGE_STD', [0.229, 0.224, 0.225])
+
     # Optional
     state_dict_path = cfg.get('STATE_DICT_PATH', None)
 
     # Grabbing model with params
     try:
-        model = custom_faster_rcnn(backbone = backbone, 
+        model = custom_faster_rcnn(backbone_name = backbone, 
                                    num_classes = num_classes,
                                    focal_loss_args = {'alpha': alpha, 'gamma' : gamma},
                                    state_dict_path = None)
@@ -66,10 +83,8 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
 
     # Loading training and validation data from location
     train_image_path = (Path(project_dir) / "images" / "train")
-    train_annot_path = (Path(project_dir) / "annotations" / "train.json")
-
-    # Computing training image normalization ranges
-    norm_mean, norm_std = custom_normalization(train_image_path)
+    #train_annot_path = (Path(project_dir) / "annotations" / "train.json")
+    train_annot_path = (Path(project_dir) / "annotation_files" / "train_filtered.json")
 
     # Define transformations (apply them to the image)
     transform = transforms.Compose([
@@ -78,19 +93,48 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
                 # Add more transformations like resizing, normalization, etc.
     ])
 
-    # Create a CocoDetection dataset
-    train_dataset = datasets.CocoDetection(root=train_image_path, annFile=train_ann_path, transform=transform)
+    # Create the custom augmentation dataset
+    if use_augmentations:
+        train_dataset = createAugmentedData(
+            root=train_image_path,
+            annotation=train_annot_path,
+            augmentation_types=augmentation_types,  # the list you defined
+            seed = random_seed,
+            set_random_seed = set_random_seed,
+            transforms=None,  # uses default: ToTensorV2
+            shuffle_dataset=shuffle_dataset,
+            augmentation_split=augmentation_split,
+            subset_size=subset_size,  # or None for full dataset
+            mixup_lambda=mixup_lambda
+        )
+    # Creating regular dataset
+    else:
+        train_dataset = datasets.CocoDetection(
+            root=train_image_path, 
+            annFile=train_annot_path, 
+            transform=transform
+        )
 
     # Create a DataLoader for batching the dataset
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x)), num_workers=workers, pin_memory=True)
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        collate_fn=lambda x: tuple(zip(*x)), 
+        num_workers=workers, 
+        pin_memory=torch.cuda.is_available()
+    )
 
     #-----------------------------------------------------------------------------------
     #--- Training pipeine
     #-----------------------------------------------------------------------------------
 
     # Set up logging to log both to a file and the console
+    log_path = (Path(project_dir) / "logging" / f"model{training_run}_log.txt")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
     logging.basicConfig(
-        filename=(Path(project_dir) / "model{training_run}_log.txt"),  # Log file name
+        filename=log_path, # Log file name
         level=logging.INFO,  # Log level
         format='%(asctime)s - %(message)s',  # Log format
         datefmt='%Y-%m-%d %H:%M:%S'
@@ -112,7 +156,7 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     logging.info(f"Momentum: {momentum}")
     logging.info(f"Weight decay: {weight_decay}")
     logging.info(f"Batch size: {batch_size}")
-    logging.info(f"Epochs: {epochs}")
+    logging.info(f"Epochs: {num_epochs}")
     logging.info(f"Device: {device}")
     logging.info("===================================")
     logging.info("")
@@ -122,6 +166,7 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
 
     # Set up optimizer using SGD and specified learning rate, momentum, and weight decay
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
+    scheduler = StepLR(optimizer, step_size=20, gamma=0.1)
 
     # Record the start time to track overall training duration
     start_time = time.time()
@@ -144,13 +189,15 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
             # Move each image tensor in the batch to the device (GPU/CPU)
             images = [image.to(device) for image in images]
 
-            # Format the targets for each image
-            # This converts raw target annotations into the format expected by the model
-            formatted_targets = [format_target(t) for t in targets]
+            # If Using Augmentations
+            if use_augmentations:
+                formatted_targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            else:
+                # Formatting targets for each image
+                formatted_targets = [format_target(t) for t in targets]
 
-            # Move each element in the formatted targets to the correct device
-            formatted_targets = [{k: v.to(device) for k, v in t.items()} for t in formatted_targets]
-            # print(formatted_targets)
+                # Move each element in the formatted targets to the correct device
+                formatted_targets = [{k: v.to(device) for k, v in t.items()} for t in formatted_targets]
 
             # Forward pass: compute the loss dictionary by passing images and formatted targets to the model
             loss_dict = model(images, formatted_targets)
@@ -179,6 +226,9 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
         # Compute the elapsed time since training started
         elapsed = time.time() - start_time
 
+        # Stepping scheduler
+        scheduler.step()
+
         # Print the epoch number, total loss for the epoch, and elapsed time
         # Log and print the epoch summary
         epoch_log_msg = f"Epoch [{epoch+1}/{num_epochs}] Total Loss: {total_loss:.4f}, Avg Loss: {avg_loss:.4f} - Time: {elapsed:.2f} seconds"
@@ -186,8 +236,9 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
 
         # **Save model checkpoint**
         if (epoch + 1) % save_every == 0:
-            (Path(project_dir) / "model{training_run}_log.txt")
+            (Path(project_dir) / f"model{training_run}_log.txt")
             checkpoint_path = (Path(project_dir) / "models" / f"model{training_run}_epoch{epoch+1}.pth")
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save({
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(),
@@ -196,16 +247,16 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
             }, checkpoint_path)
 
     # Save only the state dictionary
-    torch.save(model.state_dict(), (Path(project_dir) / "models" / "model{training_run}.pth"))
+    torch.save(model.state_dict(), (Path(project_dir) / "models" / f"model{training_run}.pth"))
 
     #-----------------------------------------------------------------------------------
     #--- Validation scoring
     #-----------------------------------------------------------------------------------
     # Running validation pipeline
-    run_validation_pipeline(model, project_dir, device, verbose, transform=transform)
+    run_validation_pipeline(model, project_dir, cfg, verbose)
 
 
-def run_training_pipeline(model, project_dir, cfg, verbose = True)
+def run_training_pipeline(model, project_dir, cfg, verbose = True):
     """
     Runs fine-tuning pipeline for the inputted model and automatic
     dataset configuration. Returns checkpointed model variables and a final model variable.
@@ -215,6 +266,9 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
         project_dir: The project directory where the training and validation folders are
         cfg: The env variables loaded with dotenv.load_dotenv
         verbose: Printing variable
+
+    Returns:
+        trained model
     """
 
     #-----------------------------------------------------------------------------------
@@ -237,16 +291,43 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
     alpha = cfg.get('ALPHA', 0.25)
     gamma = cfg.get('GAMMA', 2.0)
 
+    # Augmentation Parameters
+    use_augmentations = cfg.get("USE_AUGMENTATIONS", False)
+    shuffle_dataset = cfg.get('SHUFFLE_DATASET', True)
+    augmentation_split = cfg.get('AUGMENTATION_SPLIT', 0.5)
+    subset_size = cfg.get('SUBSET_SIZE', None)
+    subset_size = int(subset_size) if subset_size is not None else None
+    mixup_lambda = cfg.get('MIXUP_LAMBDA', 0.2)
+    random_seed = cfg.get('RANDOM_SEED', None)
+    set_random_seed = cfg.get('SET_RANDOM_SEED', False)
+
+    # Custom Transforms
+    norm_mean = cfg.get('IMAGE_MEAN', [0.485, 0.456, 0.406])
+    norm_std = cfg.get('IMAGE_STD', [0.229, 0.224, 0.225])
+
+    # Optional
+    state_dict_path = cfg.get('STATE_DICT_PATH', None)
+
+    # Grabbing model with params
+    try:
+        model = custom_faster_rcnn(backbone_name = backbone, 
+                                   num_classes = num_classes,
+                                   focal_loss_args = {'alpha': alpha, 'gamma' : gamma},
+                                   state_dict_path = None)
+
+    except Exception as e:
+        print('Unable to load model:')
+        print(e)
+        return
+
     # Check if a CUDA-enabled GPU is available; otherwise, default to using the CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model.to(device)
 
     # Loading training and validation data from location
     train_image_path = (Path(project_dir) / "images" / "train")
-    train_annot_path = (Path(project_dir) / "annotations" / "train.json")
-
-    # Computing training image normalization ranges
-    norm_mean, norm_std = custom_normalization(train_image_path)
+    #train_annot_path = (Path(project_dir) / "annotations" / "train.json")
+    train_annot_path = (Path(project_dir) / "annotation_files" / "train_filtered.json")
 
     # Define transformations (apply them to the image)
     transform = transforms.Compose([
@@ -255,19 +336,48 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
                 # Add more transformations like resizing, normalization, etc.
     ])
 
-    # Create a CocoDetection dataset
-    train_dataset = datasets.CocoDetection(root=train_image_path, annFile=train_ann_path, transform=transform)
+    # Create the custom augmentation dataset
+    if use_augmentations:
+        train_dataset = createAugmentedData(
+            root=train_image_path,
+            annotation=train_annot_path,
+            augmentation_types=augmentation_types,  # the list you defined
+            seed = random_seed,
+            set_random_seed = set_random_seed,
+            transforms=None,  # uses default: ToTensorV2
+            shuffle_dataset=shuffle_dataset,
+            augmentation_split=augmentation_split,
+            subset_size=subset_size,  # or None for full dataset
+            mixup_lambda=mixup_lambda
+        )
+    # Creating regular dataset
+    else:
+        train_dataset = datasets.CocoDetection(
+            root=train_image_path, 
+            annFile=train_annot_path, 
+            transform=transform
+        )
 
     # Create a DataLoader for batching the dataset
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=lambda x: tuple(zip(*x)), num_workers=workers, pin_memory=True)
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        collate_fn=lambda x: tuple(zip(*x)), 
+        num_workers=workers, 
+        pin_memory=torch.cuda.is_available()
+    )
 
     #-----------------------------------------------------------------------------------
     #--- Training pipeine
     #-----------------------------------------------------------------------------------
 
     # Set up logging to log both to a file and the console
+    log_path = (Path(project_dir) / "logging" / f"model{training_run}_log.txt")
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+
     logging.basicConfig(
-        filename=(Path(project_dir) / "model{training_run}_log.txt"),  # Log file name
+        filename=log_path, # Log file name
         level=logging.INFO,  # Log level
         format='%(asctime)s - %(message)s',  # Log format
         datefmt='%Y-%m-%d %H:%M:%S'
@@ -289,7 +399,7 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
     logging.info(f"Momentum: {momentum}")
     logging.info(f"Weight decay: {weight_decay}")
     logging.info(f"Batch size: {batch_size}")
-    logging.info(f"Epochs: {epochs}")
+    logging.info(f"Epochs: {num_epochs}")
     logging.info(f"Device: {device}")
     logging.info("===================================")
     logging.info("")
@@ -299,6 +409,7 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
 
     # Set up optimizer using SGD and specified learning rate, momentum, and weight decay
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum, weight_decay=weight_decay)
+    scheduler = StepLR(optimizer, step_size=20, gamma=0.1)
 
     # Record the start time to track overall training duration
     start_time = time.time()
@@ -321,13 +432,15 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
             # Move each image tensor in the batch to the device (GPU/CPU)
             images = [image.to(device) for image in images]
 
-            # Format the targets for each image
-            # This converts raw target annotations into the format expected by the model
-            formatted_targets = [format_target(t) for t in targets]
+            # If Using Augmentations
+            if use_augmentations:
+                formatted_targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
+            else:
+                # Formatting targets for each image
+                formatted_targets = [format_target(t) for t in targets]
 
-            # Move each element in the formatted targets to the correct device
-            formatted_targets = [{k: v.to(device) for k, v in t.items()} for t in formatted_targets]
-            # print(formatted_targets)
+                # Move each element in the formatted targets to the correct device
+                formatted_targets = [{k: v.to(device) for k, v in t.items()} for t in formatted_targets]
 
             # Forward pass: compute the loss dictionary by passing images and formatted targets to the model
             loss_dict = model(images, formatted_targets)
@@ -356,6 +469,9 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
         # Compute the elapsed time since training started
         elapsed = time.time() - start_time
 
+        # Stepping scheduler
+        scheduler.step()
+
         # Print the epoch number, total loss for the epoch, and elapsed time
         # Log and print the epoch summary
         epoch_log_msg = f"Epoch [{epoch+1}/{num_epochs}] Total Loss: {total_loss:.4f}, Avg Loss: {avg_loss:.4f} - Time: {elapsed:.2f} seconds"
@@ -363,8 +479,9 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
 
         # **Save model checkpoint**
         if (epoch + 1) % save_every == 0:
-            (Path(project_dir) / "model{training_run}_log.txt")
+            (Path(project_dir) / f"model{training_run}_log.txt")
             checkpoint_path = (Path(project_dir) / "models" / f"model{training_run}_epoch{epoch+1}.pth")
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
             torch.save({
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(),
@@ -373,41 +490,64 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True)
             }, checkpoint_path)
 
     # Save only the state dictionary
-    torch.save(model.state_dict(), (Path(project_dir) / "models" / "model{training_run}.pth"))
+    torch.save(model.state_dict(), (Path(project_dir) / "models" / f"model{training_run}.pth"))
 
-    return model, transform
+    return model
 
 
-def run_validation_pipeline(model, project_dir, device, verbose = True, transform = None):
+def run_validation_pipeline(model, project_dir, cfg, verbose = True):
     """
     Runs the validation loop for an object detection model and collects predictions.
 
     Args:
-    - model: The object detection model to evaluate.
-    - project_dir: The project directory where the training and validation folders are
-    - device: The computing device (CPU or GPU).
-    - verbose: If outputs are wanted.
-    - transform: Import transforms from training.
+        model: The object detection model to evaluate.
+        project_dir: The project directory where the training and validation folders are
+        cfg: The env variables loaded with dotenv.load_dotenv
+        verbose: If outputs are wanted.
 
     Returns:
-    - predictions in xyxy format
+        predictions in xyxy format
     """
+    # Grabbing training parameters from cfg
+    training_run = cfg['TRAINING_RUN']
+    batch_size = int(cfg['BATCH_SIZE'])
+    workers = int(cfg['WORKERS'])
+
+    # Custom Transforms
+    norm_mean = cfg.get('IMAGE_MEAN', [0.485, 0.456, 0.406])
+    norm_std = cfg.get('IMAGE_STD', [0.229, 0.224, 0.225])
+
+    # Optional
+    state_dict_path = cfg.get('STATE_DICT_PATH', None)
+
+    # Check if a CUDA-enabled GPU is available; otherwise, default to using the CPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.to(device)
+
     # Setting validation path
     val_image_path = (Path(project_dir) / "images" / "validation")
-    val_annot_path = (Path(project_dir) / "annotations" / "validation.json")
+    #val_annot_path = (Path(project_dir) / "annotations" / "validation.json")
+    val_annot_path = (Path(project_dir) / "annotation_files" / "validation_modified.json")
 
-    if not transform:
-        # Define transformations (apply them to the image)
-        transform = transforms.Compose([
-                    transforms.ToTensor(),  # Convert images to tensor
-                    # Add more transformations like resizing, normalization, etc.
-        ])
+    # Define transformations (apply them to the image)
+    transform = transforms.Compose([
+                transforms.ToTensor(),  # Convert images to tensor
+                transforms.Normalize(mean=norm_mean, std=norm_std),
+                # Add more transformations like resizing, normalization, etc.
+    ])
 
     # Create a CocoDetection dataset
-    val_dataset = datasets.CocoDetection(root=val_image_path, annFile=val_ann_path, transform=transform)
+    val_dataset = datasets.CocoDetection(root=val_image_path, annFile=val_annot_path, transform=transform)
 
     # Create a DataLoader for batching the dataset
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=lambda x: tuple(zip(*x)), num_workers=workers, pin_memory=True)
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=batch_size, 
+        shuffle=True, 
+        collate_fn=lambda x: tuple(zip(*x)), 
+        num_workers=workers, 
+        pin_memory=torch.cuda.is_available()
+    )
 
     model.eval()  # Set model to evaluation mode (disables dropout, batch norm updates)
     all_boxes = []  # Stores predicted bounding boxes
@@ -418,7 +558,7 @@ def run_validation_pipeline(model, project_dir, device, verbose = True, transfor
     start_time = time.time()  # Start tracking validation time
 
     with torch.no_grad():  # Disable gradient computation for efficiency
-        total_batches = len(vaL_loader)  # Total number of batches in validation set
+        total_batches = len(val_loader)  # Total number of batches in validation set
 
         for batch_idx, (images, targets) in enumerate(val_loader):
             images = [image.to(device) for image in images]  # Move images to the specified device (CPU/GPU)
@@ -456,8 +596,15 @@ def run_validation_pipeline(model, project_dir, device, verbose = True, transfor
             "score": scores
         })
 
+    # Saving Predictions
+    pred_save_location = (Path(project_dir) / "predictions" / f"run{training_run}_preds.json")
+    pred_save_location.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(pred_save_location, 'w') as f:
+        json.dump(predictions, f)
+
     # Evaluating predictions
     reformatted_preds = reformat_predictions(predictions, format = 'coco')
-    compute_mAP(COCO(val_annotation), reformat_predictions)
+    compute_mAP(COCO(val_annot_path), reformat_predictions)
 
     return predictions

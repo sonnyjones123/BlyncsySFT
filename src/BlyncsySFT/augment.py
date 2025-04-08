@@ -21,7 +21,9 @@ from albumentations.pytorch import ToTensorV2
 import random
 import shutil
 from typing import Optional, Tuple, Dict, List, Callable
+import warnings
 
+warnings.filterwarnings("ignore", message="Got processor for bboxes, but no transform to process it.")
 
 augmentation_types = [
     {
@@ -92,8 +94,6 @@ class createAugmentedData(Dataset):
         """
         Class for generating augmented images
         """
-
-
         self.root = root
         self.annotation = annotation
         self.transforms = transforms
@@ -155,12 +155,12 @@ class createAugmentedData(Dataset):
             self.aug_type_details = {}
             
             num_total_imgs = len(self.ids)
-            print(f"total no of images  -*10: {num_total_imgs}")
+            #print(f"total no of images  -*10: {num_total_imgs}")
             num_augmentation_imgs = int(num_total_imgs * self.augmentation_split)
-            print(f"total no of aug images  -*10: {num_augmentation_imgs}")
+            #print(f"total no of aug images  -*10: {num_augmentation_imgs}")
             
             num_original_imgs = num_total_imgs - num_augmentation_imgs
-            print(f"total no of original images  -*10: {num_original_imgs}")
+            #print(f"total no of original images  -*10: {num_original_imgs}")
 
             #original image subset
             self.original_ids = self.ids[:num_original_imgs]
@@ -400,10 +400,13 @@ class createAugmentedData(Dataset):
         # Convert to tensor and normalize to [0,1]
         img = torchvision.transforms.functional.to_tensor(img)
         
-        return( img, {
-            'bbox': boxes[0],
-            'category_id': labels[0],
-            'image_id': img_id
-        })    
+        return img, {
+            'boxes': torch.as_tensor([
+                [x, y, x + w, y + h] for (x, y, w, h) in boxes
+            ], dtype=torch.float32),
+            'labels': torch.as_tensor(labels, dtype=torch.int64),
+            'image_id': torch.tensor([img_id])
+        }
+
     def __len__(self):
         return len(self.ids)
