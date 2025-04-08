@@ -37,7 +37,8 @@ def train(project_dir, verbose):
 
     try:
         # Loading env file
-        cfg = load_and_validate_env(required_keys = required)
+        env_path = (Path(project_dir) / ".env")
+        cfg = load_and_validate_env(env_file = env_path, required_keys = required)
         
         if verbose:
             click.echo(f"✅ Loaded valid configuration from .env")

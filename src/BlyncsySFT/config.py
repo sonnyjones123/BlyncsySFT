@@ -2,12 +2,13 @@ import yaml
 from pathlib import Path
 from dotenv import load_dotenv
 from typing import Dict, Any
+import os
 
 class ConfigValidationError(Exception):
     """Raised when required configuration is missing or invalid"""
     pass
 
-def load_and_validate_env(env_file: str = ".env", required_keys: Optional[List[str]] = None) -> Dict[str, str]:
+def load_and_validate_env(env_file: str = ".env", required_keys: list[str] = None) -> Dict[str, str]:
     """
     Load environment variables from file and validate required keys are present.
     
@@ -43,28 +44,3 @@ def load_and_validate_env(env_file: str = ".env", required_keys: Optional[List[s
         )
     
     return env_vars
-
-'''
-def load_config(config_path: Path) -> Dict[str, Any]:
-    """Load YAML configuration file"""
-    with open(config_path, 'r') as f:
-        config = yaml.safe_load(f)
-    return config
-
-def validate_config(config: Dict[str, Any]):
-    """Validate the configuration dictionary"""
-    required_keys = {
-        'training': ['training_run', 'epochs', 'batch_size', 'workers'],
-        'data': ['classes'],
-        'model': ['backbone']
-        'focal_loss_params' : ['alpha', 'gamma'],
-        'save_every' : ['epochs']
-    }
-    
-    for section, keys in required_keys.items():
-        if section not in config:
-            raise ValueError(f"Missing section '{section}' in config")
-        for key in keys:
-            if key not in config[section]:
-                raise ValueError(f"Missing key '{key}' in section '{section}'")
-'''
