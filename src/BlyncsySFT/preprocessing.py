@@ -2,14 +2,13 @@ import numpy as np
 import cv2 
 from glob import glob
 import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
-from sklearn.mixture import BayesianGaussianMixture
 import math
+from pathlib import Path
 
 def custom_bounding_boxes(gt_bbox_list, 
                           image_size: tuple = (1920, 1080), 
                           percentiles_scales = [10, 25, 50, 75, 90],
-                          percentiles_ratios = [10, 50, 90])
+                          percentiles_ratios = [10, 50, 90]):
     """
     Grabbing bounding boxes using percentiles.
 
@@ -71,71 +70,7 @@ def custom_bounding_boxes(gt_bbox_list,
             'aspect_ratios' : tuple(ratios)}
 
 
-def optimal_bounding_boxes(gt_bbox_list, image_size: tuple = (1920, 1080)):
-    """
-    Uses BayesianGaussianMixture and KMeans clustering to determine the optimal bounding boxes.
-
-    Args:
-    - gt_bbox_list: list of dictionaries containing the image metadata and bounding box information in the 
-                    [xmin, ymin, xmax, ymax] format.
-    - image_size: tuple of image size
-
-    Returns:
-    - optimal anchor sizes
-    - optmial aspect ratios
-    """
-    # Reformatting bounding boxes
-    reformatted = []
-
-    # Iterating through bounding boxes
-    for gt in gt_bbox_list:
-        reformatted.append([gt[2] - gt[0], gt[3] - gt[1]])
-
-    # Normalize box dimensions
-    boxes = np.array(gt_bbox_list) / image_size
-
-    # Fit BayesianGaussianMixture (set a high max k)
-    bgm = BayesianGaussianMixture(n_components=15, random_state=42)  
-    bgm.fit(boxes)
-
-    # Optimal k = number of significant clusters (weights > threshold)
-    optimal_k = np.sum(bgm.weights_ > 0.01)  # Adjust threshold as needed
-    print("Optimal k (BayesianGaussianMixture):", optimal_k)
-
-    # Now run K-Means with this k
-    kmeans = KMeans(n_clusters=optimal_k, random_state=42)
-    kmeans.fit(boxes)
-
-    # Get cluster centroids (optimal anchor box sizes)
-    anchor_boxes = kmeans.cluster_centers_ * image_size
-    print("Optimal anchor boxes:", anchor_boxes)
-
-    # Apply the function to each row
-    bbox_anchor_sizes = np.apply_along_axis(calc_geometric_mean, 1, anchor_boxes).sort()
-    bbox_aspect_ratios = np.apply_along_axis(calc_aspect_ratio, 1, anchor_boxes).sort()
-
-    # Creating optimal aspect_ratios
-    min_val = min(bbox_aspect_sizes)
-    max_val = max(bbox_aspect_ratios)
-
-    # Calculate first bin start
-    first_bin = math.floor(min_val / bin_width) * bin_width
-
-    # Generate all bin starts
-    bin_starts = []
-    current = first_bin
-    while current <= max_val:
-        bin_starts.append(current)
-        current += bin_width
-
-    print(f"Anchor Sizes: {bbox_anchor_sizes}")
-    print(f"Ratios: {bin_starts}")
-
-    return {'anchor_sizes' : tuple([(item,) for item in bbox_anchor_sizes]),
-            'aspect_ratios' : tuple(bin_starts)}
-
-
-def custom_normalization(image_paths)
+def custom_normalization(image_paths):
     """
     Calculating the custom normalization values for image normalization.
 
@@ -147,7 +82,7 @@ def custom_normalization(image_paths)
     - std of 3 channels
     """
     # Grabbing files using glob
-    paths = glob((Path(image_paths) / "*.jpg"))
+    paths = glob(f'./{(Path(image_paths) / "*.jpg")}')
 
     # Calculate 5% of the total number of images
     sample_size = int(0.05 * len(paths))
@@ -164,7 +99,7 @@ def custom_normalization(image_paths)
     total_pixels = 0
 
     # Iterating through dataset
-    for index in tqdm(sampled_paths):
+    for index in sampled_paths:
         # Read image (returns None if corrupted)
         img = cv2.imread(paths[index])
         if img is None:

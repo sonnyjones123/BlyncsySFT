@@ -308,30 +308,3 @@ class FocalLoss(nn.Module):
             return loss.sum()
         else:
             return loss  # No reduction
-
-
-'''
-def focal_loss_faster_rcnn(base_model, alpha: float = 0.25, gamma: float = 2.0)
-    """
-    Replacing Faster RCNN loss function with focal loss.
-
-    Args:
-    - base_model: the model
-    - alpha: balances the loss contribution of different classes to handle class imbalance
-    - gamma: weight for focusing the loss on hard examples by reducing the contribution of easy examples
-
-    Returns:
-    - custom Faster RCNN with focal loss function    
-    """
-    # Initialize the Focal Loss function with specified alpha (class weight) and gamma (focusing parameter)
-    alpha = 0.25
-    gamma = 2.0
-    focal_loss_fn = FocalLoss(alpha=alpha, gamma=gamma)
-
-    # Create an instance of Faster R-CNN with Focal Loss, using a pre-trained base model
-    model = FasterRCNNWithFocalLoss(base_model, focal_loss_fn)
-    model.rpn = base_model.rpn  # Set same RPN from base model
-    model.roi_heads = base_model.roi_heads  # Set same ROI heads from base model
-
-    return model
-'''
