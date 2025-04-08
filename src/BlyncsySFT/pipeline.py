@@ -280,8 +280,6 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
     num_epochs = int(cfg['EPOCHS'])
     batch_size = int(cfg['BATCH_SIZE'])
     workers = int(cfg['WORKERS'])
-    num_classes = int(cfg['NUM_CLASSES'])
-    backbone = cfg['BACKBONE']
     save_every = int(cfg['SAVE_EVERY'])
 
     # Default training parameters
@@ -304,21 +302,6 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
     # Custom Transforms
     norm_mean = cfg.get('IMAGE_MEAN', [0.485, 0.456, 0.406])
     norm_std = cfg.get('IMAGE_STD', [0.229, 0.224, 0.225])
-
-    # Optional
-    state_dict_path = cfg.get('STATE_DICT_PATH', None)
-
-    # Grabbing model with params
-    try:
-        model = custom_faster_rcnn(backbone_name = backbone, 
-                                   num_classes = num_classes,
-                                   focal_loss_args = {'alpha': alpha, 'gamma' : gamma},
-                                   state_dict_path = None)
-
-    except Exception as e:
-        print('Unable to load model:')
-        print(e)
-        return
 
     # Check if a CUDA-enabled GPU is available; otherwise, default to using the CPU
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -543,7 +526,7 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
     val_loader = DataLoader(
         val_dataset, 
         batch_size=batch_size, 
-        shuffle=True, 
+        shuffle=False, 
         collate_fn=lambda x: tuple(zip(*x)), 
         num_workers=workers, 
         pin_memory=torch.cuda.is_available()
@@ -605,6 +588,7 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
 
     # Evaluating predictions
     reformatted_preds = reformat_predictions(predictions, format = 'coco')
-    compute_mAP(COCO(val_annot_path), reformat_predictions)
+    gt_bbox = COCO(val_annot_path)
+    compute_mAP(gt_bbox, reformatted_preds)
 
     return predictions
