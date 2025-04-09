@@ -15,7 +15,7 @@ from torchvision.ops import box_iou
 
 def custom_faster_rcnn(backbone_name: str = 'resnet50', 
                        num_classes: int = 2, 
-                       focal_loss_args: dict = {'alpha' : 0.025, 'gamma' : 2.0}, 
+                       focal_loss_args: dict = {}, 
                        custom_anchor_args: dict = {},
                        state_dict_path = None):
     """
@@ -66,6 +66,12 @@ def custom_faster_rcnn(backbone_name: str = 'resnet50',
         model_kwargs['focal_loss_fn'] = FocalLoss(alpha=focal_loss_args.get('alpha'),
                                                   gamma=focal_loss_args.get('gamma'))
 
+        # Setting create model function for Faster RCNN with Focal Loss
+        create_model = FasterRCNNWithFocalLoss
+    else:
+        # Setting create model function for regular Faster RCNN
+        create_model = FasterRCNN
+
     # Checking if custom anchor arguments are there
     if custom_anchor_args.get('anchor_sizes') is not None and custom_anchor_args.get('aspect_ratios') is not None:
         # Create custom AnchorGenerator
@@ -82,7 +88,7 @@ def custom_faster_rcnn(backbone_name: str = 'resnet50',
         model_kwargs['rpn_head'] = rpn_head
 
     # Creating model
-    model = FasterRCNNWithFocalLoss(**model_kwargs)
+    model = create_model(**model_kwargs)
 
     # If a state dictionary path was provided
     if state_dict_path is not None:
