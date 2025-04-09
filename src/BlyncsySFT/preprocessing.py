@@ -4,8 +4,9 @@ from glob import glob
 import matplotlib.pyplot as plt
 import math
 from pathlib import Path
+import json
 
-def custom_bounding_boxes(gt_bbox_list, 
+def custom_bounding_boxes(image_paths, 
                           image_size: tuple = (1920, 1080), 
                           percentiles_scales = [10, 25, 50, 75, 90],
                           percentiles_ratios = [10, 50, 90]):
@@ -13,16 +14,22 @@ def custom_bounding_boxes(gt_bbox_list,
     Grabbing bounding boxes using percentiles.
 
     Args:
-    - gt_bbox_list: list of dictionaries containing the image metadata and bounding box information in the 
-                    [xmin, ymin, xmax, ymax] format.
+    - image_paths: path to image directory
     - image_size: tuple of image size
     - percentiles_scales: percentiles of scales to extract. Default: [10, 25, 50, 75, 90]
     - percentiles_ratios: percentiles of ratios to extract. Default: [10, 50, 90]
 
     Returns:
-    - optimal anchor sizes
-    - optmial aspect ratios
+    - anchor sizes
+    - aspect ratios
     """
+    # Opening and loading image paths
+    with open(image_paths, 'r') as f:
+        train_dataset = json.load(f)
+
+    # Converting ground truths to width and height scale
+    gt_bbox_list = [[item['bbox'][2], item['bbox'][3]] for item in train_dataset['annotations']]
+
     # Lists to hold stats
     widths = []
     heights = []
@@ -32,8 +39,8 @@ def custom_bounding_boxes(gt_bbox_list,
     # Iterating through gt_bbox_list
     for gt in gt_bbox_list:
         # Calculating width and height
-        width = gt[2] - gt[0]
-        height = gt[3] - gt[1]
+        width = gt[0]
+        height = gt[1]
 
         # Appending to lists
         widths.append(width)
