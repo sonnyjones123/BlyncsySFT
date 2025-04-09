@@ -17,6 +17,8 @@ from torchvision.transforms import ToPILImage
 import numpy as np
 import time
 
+# Check if a CUDA-enabled GPU is available; otherwise, default to using the CPU
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def score_images(model, data_loader, alpha = 0.7):
     """
@@ -28,19 +30,24 @@ def score_images(model, data_loader, alpha = 0.7):
     Box IoU. 
 
     Args:
-        model: The current model to plot
-        data_loader: The evaluation dataset, in a dataloder with batchsize 1
+        model: The current model to evaluate with
+        data_loader: The evaluation dataset, in a dataloder with batchsize 1. Can be returned with the function
+            saliency_dataloader().
         alpha (0.7): The weighting parameter between scoring metrics
 
     Returns:
         list of dictionaries of scored images
     """
+    # Set the model to evaluation mode for inference
+    model.to(device)
+    model.eval()
+
     total_batches = len(data_loader)  # Total number of batches in validation set
     score_list = []
 
     start_time = time.time()  # Start tracking validation time
 
-    for batch_idx, batch in enumerate(val_loader):
+    for batch_idx, batch in enumerate(data_loader):
         # batch is a single item due to batch_size=1 and collate_fn
         image, target = batch
         
@@ -104,7 +111,7 @@ def score_images(model, data_loader, alpha = 0.7):
     return score_list
 
 
-def plot_saliency_bbox(model, image, target, savepath = None):
+def plot_saliency_bbox(model, image, target, save_path = None):
     """
     Plots the current image, the generated bounding box from the saliency_map, and the target that
     contains the original bounding box.
@@ -147,7 +154,7 @@ def plot_saliency_bbox(model, image, target, savepath = None):
     saliency_map = (saliency_map - saliency_map.min()) / (saliency_map.max() - saliency_map.min())
 
     # Visualize the saliency map
-    visualize_saliency_and_bbox(image_rgb, saliency_map, target, save = False)
+    visualize_saliency_and_bbox(image_rgb, saliency_map, target, save_path = None)
 
 
 def expected_bbox(saliency_map, k=1):
@@ -282,14 +289,16 @@ def saliency_dataloader(image_folder, annotation_file, num_workers = 4):
         DataLoader
     """
     # Create a CocoDetection dataset
-    train_dataset = datasets.CocoDetection(root=img_folder, annFile=annotation_file, transform=T.ToTensor())
+    dataset = datasets.CocoDetection(root=image_folder, annFile=annotation_file, transform=T.ToTensor())
 
     # Configure DataLoader with multiple workers
-    train_loader = DataLoader(
-        train_dataset,
-        batch_size=1,                   # Process one image at a time
-        shuffle=False,                  # No need to shuffle for validation
-        num_workers=num_workers,        # Number of parallel workers (adjust based on CPU cores)
-        pin_memory=True,                # Faster data transfer to GPU (if available)
-        collate_fn=lambda x: x[0]       # Handle batch_size=1 explicitly
+    data_loader = DataLoader(
+        dataset,
+        batch_size=1,                           # Process one image at a time
+        shuffle=False,                          # No need to shuffle for validation
+        num_workers=num_workers,                # Number of parallel workers (adjust based on CPU cores)
+        pin_memory=torch.cuda.is_available(),   # Faster data transfer to GPU (if available)
+        collate_fn=lambda x: x[0]               # Handle batch_size=1 explicitly
     )
+
+    return data_loader
