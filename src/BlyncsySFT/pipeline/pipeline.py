@@ -11,11 +11,12 @@ from torch.utils.data import DataLoader
 from pycocotools.coco import COCO
 from torch.optim.lr_scheduler import StepLR
 from models import custom_faster_rcnn
-from preprocessing import custom_normalization
+from BlyncsySFT.data.preprocessing import custom_normalization
 from format import format_target, reformat_predictions
 from eval import compute_mAP
 from pathlib import Path
-from augment import createAugmentedData, augmentation_types
+from BlyncsySFT.data.augment import createAugmentedData, augmentation_types
+
 
 def run_auto_training_pipeline(project_dir, cfg, verbose):
     """
@@ -28,9 +29,9 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
         cfg: The env variables loaded with dotenv.load_dotenv
         verbose: Printing variable
     """
-    #-----------------------------------------------------------------------------------
-    #--- Configuring training pipeline
-    #-----------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------
+    # --- Configuring training pipeline
+    # -----------------------------------------------------------------------------------
 
     # Grabbing training parameters from cfg
     training_run = cfg['TRAINING_RUN']
@@ -71,10 +72,10 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
 
     # Grabbing model with params
     try:
-        model = custom_faster_rcnn(backbone_name = backbone, 
-                                   num_classes = num_classes,
-                                   focal_loss_args = {'alpha': alpha, 'gamma' : gamma},
-                                   state_dict_path = None)
+        model = custom_faster_rcnn(backbone_name=backbone,
+                                   num_classes=num_classes,
+                                   focal_loss_args={'alpha': alpha, 'gamma': gamma},
+                                   state_dict_path=None)
 
     except Exception as e:
         print('Unable to load model:')
@@ -88,7 +89,7 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     # Define transformations (apply them to the image)
     transform = transforms.Compose([
                 transforms.ToTensor(),  # Convert images to tensor
-                transforms.Normalize(mean = norm_mean, std = norm_std),
+                transforms.Normalize(mean=norm_mean, std=norm_std),
                 # Add more transformations like resizing, normalization, etc.
     ])
 
@@ -98,8 +99,8 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
             root=train_image_path,
             annotation=train_annot_path,
             augmentation_types=augmentation_types,  # the list you defined
-            seed = random_seed,
-            set_random_seed = set_random_seed,
+            seed=random_seed,
+            set_random_seed=set_random_seed,
             transforms=None,  # uses default: ToTensorV2
             shuffle_dataset=shuffle_dataset,
             augmentation_split=augmentation_split,
@@ -109,31 +110,31 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     # Creating regular dataset
     else:
         train_dataset = datasets.CocoDetection(
-            root=train_image_path, 
-            annFile=train_annot_path, 
+            root=train_image_path,
+            annFile=train_annot_path,
             transform=transform
         )
 
     # Create a DataLoader for batching the dataset
     train_loader = DataLoader(
-        train_dataset, 
-        batch_size=batch_size, 
-        shuffle=True, 
-        collate_fn=lambda x: tuple(zip(*x)), 
-        num_workers=workers, 
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=lambda x: tuple(zip(*x)),
+        num_workers=workers,
         pin_memory=torch.cuda.is_available()
     )
 
-    #-----------------------------------------------------------------------------------
-    #--- Training pipeine
-    #-----------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------
+    # --- Training pipeine
+    # -----------------------------------------------------------------------------------
 
     # Set up logging to log both to a file and the console
     log_path = (Path(project_dir) / "logging" / f"model{training_run}_log.txt")
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
-        filename=log_path, # Log file name
+        filename=log_path,  # Log file name
         level=logging.INFO,  # Log level
         format='%(asctime)s - %(message)s',  # Log format
         datefmt='%Y-%m-%d %H:%M:%S'
@@ -148,7 +149,7 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     # Logging information to training log
     logging.info("===== Training Configuration =====")
     logging.info(f"Training run: model{training_run}")
-    logging.info(f"Loss function: focal loss")
+    logging.info("Loss function: focal loss")
     logging.info(f"Alpha: {alpha}")
     logging.info(f"Gamma: {gamma}")
     logging.info(f"Learning rate: {learning_rate}")
@@ -248,14 +249,14 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     # Save only the state dictionary
     torch.save(model.state_dict(), (Path(project_dir) / "models" / f"model{training_run}.pth"))
 
-    #-----------------------------------------------------------------------------------
-    #--- Validation scoring
-    #-----------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------
+    # --- Validation scoring
+    # -----------------------------------------------------------------------------------
     # Running validation pipeline
     run_validation_pipeline(model, project_dir, cfg, verbose)
 
 
-def run_training_pipeline(model, project_dir, cfg, verbose = True):
+def run_training_pipeline(model, project_dir, cfg, verbose=True):
     """
     Runs fine-tuning pipeline for the inputted model and automatic
     dataset configuration. Returns checkpointed model variables and a final model variable.
@@ -270,9 +271,9 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
         trained model
     """
 
-    #-----------------------------------------------------------------------------------
-    #--- Configuring training pipeline
-    #-----------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------
+    # --- Configuring training pipeline
+    # -----------------------------------------------------------------------------------
 
     # Grabbing training parameters from cfg
     training_run = cfg['TRAINING_RUN']
@@ -323,8 +324,8 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
             root=train_image_path,
             annotation=train_annot_path,
             augmentation_types=augmentation_types,  # the list you defined
-            seed = random_seed,
-            set_random_seed = set_random_seed,
+            seed=random_seed,
+            set_random_seed=set_random_seed,
             transforms=None,  # uses default: ToTensorV2
             shuffle_dataset=shuffle_dataset,
             augmentation_split=augmentation_split,
@@ -334,31 +335,31 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
     # Creating regular dataset
     else:
         train_dataset = datasets.CocoDetection(
-            root=train_image_path, 
-            annFile=train_annot_path, 
+            root=train_image_path,
+            annFile=train_annot_path,
             transform=transform
         )
 
     # Create a DataLoader for batching the dataset
     train_loader = DataLoader(
-        train_dataset, 
-        batch_size=batch_size, 
-        shuffle=True, 
-        collate_fn=lambda x: tuple(zip(*x)), 
-        num_workers=workers, 
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        collate_fn=lambda x: tuple(zip(*x)),
+        num_workers=workers,
         pin_memory=torch.cuda.is_available()
     )
 
-    #-----------------------------------------------------------------------------------
-    #--- Training pipeine
-    #-----------------------------------------------------------------------------------
+    # -----------------------------------------------------------------------------------
+    # --- Training pipeine
+    # -----------------------------------------------------------------------------------
 
     # Set up logging to log both to a file and the console
     log_path = (Path(project_dir) / "logging" / f"model{training_run}_log.txt")
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
     logging.basicConfig(
-        filename=log_path, # Log file name
+        filename=log_path,  # Log file name
         level=logging.INFO,  # Log level
         format='%(asctime)s - %(message)s',  # Log format
         datefmt='%Y-%m-%d %H:%M:%S'
@@ -373,7 +374,7 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
     # Logging information to training log
     logging.info("===== Training Configuration =====")
     logging.info(f"Training run: model{training_run}")
-    logging.info(f"Loss function: focal loss")
+    logging.info("Loss function: focal loss")
     logging.info(f"Alpha: {alpha}")
     logging.info(f"Gamma: {gamma}")
     logging.info(f"Learning rate: {learning_rate}")
@@ -476,7 +477,7 @@ def run_training_pipeline(model, project_dir, cfg, verbose = True):
     return model
 
 
-def run_validation_pipeline(model, project_dir, cfg, verbose = True):
+def run_validation_pipeline(model, project_dir, cfg, verbose=True):
     """
     Runs the validation loop for an object detection model and collects predictions.
 
@@ -521,11 +522,11 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
 
     # Create a DataLoader for batching the dataset
     val_loader = DataLoader(
-        val_dataset, 
-        batch_size=batch_size, 
-        shuffle=False, 
-        collate_fn=lambda x: tuple(zip(*x)), 
-        num_workers=workers, 
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        collate_fn=lambda x: tuple(zip(*x)),
+        num_workers=workers,
         pin_memory=torch.cuda.is_available()
     )
 
@@ -533,7 +534,7 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
     all_boxes = []  # Stores predicted bounding boxes
     all_labels = []  # Stores predicted class labels
     all_scores = []  # Stores confidence scores for each prediction
-    all_image_ids = [] # Stores image ids
+    all_image_ids = []  # Stores image ids
 
     start_time = time.time()  # Start tracking validation time
 
@@ -542,12 +543,12 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
 
         for batch_idx, (images, targets) in enumerate(val_loader):
             images = [image.to(device) for image in images]  # Move images to the specified device (CPU/GPU)
-            batch_ids = [t[0]['image_id'] for t in targets] # Grabbing image ids from targets
+            batch_ids = [t[0]['image_id'] for t in targets]  # Grabbing image ids from targets
             all_image_ids.extend(batch_ids)
-            
+
             # Make predictions
             predictions = model(images)
-            
+
             # Store results for each prediction in the batch
             for prediction in predictions:
                 all_boxes.append(prediction['boxes'].cpu().numpy().tolist())  # Store bounding boxes
@@ -564,10 +565,10 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
 
     # Loading predictions into coco format
     predictions = []  # List to store formatted prediction data
-    
+
     # Iterate through all predictions and match them with dataset samples
     for image_id, boxes, labels, scores in zip(all_image_ids, all_boxes, all_labels, all_scores):
-        
+
         # Store predictions in a structured dictionary
         predictions.append({
             "image_id": image_id,
@@ -584,7 +585,7 @@ def run_validation_pipeline(model, project_dir, cfg, verbose = True):
         json.dump(predictions, f)
 
     # Evaluating predictions
-    reformatted_preds = reformat_predictions(predictions, format = 'coco')
+    reformatted_preds = reformat_predictions(predictions, format='coco')
     gt_bbox = COCO(val_annot_path)
     compute_mAP(gt_bbox, reformatted_preds)
 

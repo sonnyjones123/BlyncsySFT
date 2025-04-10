@@ -1,5 +1,6 @@
 import torch
 
+
 def reformat_predictions(predictions, format: str = 'coco'):
     """
     Reformats predictions from model. Current formatting functions:
@@ -101,7 +102,7 @@ def format_target(target):
     boxes = []
     labels = []
     areas = []
-    
+
     for obj in target:
         # Extract the top-left coordinates (x1, y1)
         x1 = obj['bbox'][0]
@@ -110,7 +111,7 @@ def format_target(target):
         # Calculate bottom-right coordinates: x2 = x1 + width, y2 = y1 + height
         x2 = x1 + obj['bbox'][2]
         y2 = y1 + obj['bbox'][3]
-        
+
         boxes.append([x1, y1, x2, y2])
         labels.append(obj['category_id'])
         areas.append(obj['area'])

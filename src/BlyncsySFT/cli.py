@@ -1,7 +1,7 @@
 import click
 from pathlib import Path
 from config import load_and_validate_env
-from pipeline import run_auto_training_pipeline
+from BlyncsySFT.training.pipeline import run_auto_training_pipeline
 
 @click.group()
 def cli():
