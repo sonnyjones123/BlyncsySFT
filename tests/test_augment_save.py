@@ -2,9 +2,9 @@ from BlyncsySFT.augment import createAugmentedData, augmentation_types
 from pathlib import Path
 
 # Paths
-root = "../../BlyncsyRL/guardrail-damage/images"  # Folder with your original images
-annotation = "../../BlyncsyRL/guardrail-damage/annotation_files/train_filtered.json"  # COCO-format JSON file
-output_dir = "../../BlyncsyRL/guardrail-damage/augmented_images"  # This will store your saved augmentations
+root = "../BlyncsyRL/guardrail-damage/images/train"  # Folder with your original images
+annotation = "../BlyncsyRL/guardrail-damage/annotation_files/train_filtered.json"  # COCO-format JSON file
+output_dir = "../BlyncsyRL/guardrail-damage/images/train_augmented"  # This will store your saved augmentations
 
 # Instantiate dataset
 dataset = createAugmentedData(
