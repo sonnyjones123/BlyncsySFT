@@ -1,5 +1,4 @@
 from BlyncsySFT.augment import createAugmentedData, augmentation_types
-from pathlib import Path
 
 # Paths
 root = "../BlyncsyRL/guardrail-damage/images/train"  # Folder with your original images

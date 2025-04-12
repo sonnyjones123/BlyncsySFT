@@ -99,7 +99,7 @@ class createAugmentedData(Dataset):
         # Set random seeds
         if self.set_random_seed:
             self._set_seeds()
-            
+
         if self.output_dir:
             # Create output directory if it doesn't exist
             self._prepare_output_dirs()
@@ -126,11 +126,11 @@ class createAugmentedData(Dataset):
 
         # split the dataset
         self._split_dataset()
-        
+
     def _prepare_output_dirs(self):
         for aug in self.augmentation_types or []:
             (self.output_dir / aug['name']).mkdir(parents=True, exist_ok=True)
-        
+
         (self.output_dir / 'original').mkdir(parents=True, exist_ok=True)
 
     def _set_seeds(self):
@@ -175,7 +175,8 @@ class createAugmentedData(Dataset):
             current_idx = 0
             num_augmented = len(self.augmented_ids)
 
-            # Normalize augmentation ratios amongst all the augmentations to divide the no of augmentations for each transformation
+            # Normalize augmentation ratios amongst all the augmentations
+            # to divide the no of augmentations for each transformation
             total_ratio = sum(aug['ratio'] for aug in self.augmentation_types)
 
             if total_ratio > 0:
