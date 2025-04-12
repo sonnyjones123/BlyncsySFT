@@ -1,23 +1,19 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-import torchvision
 from torchvision.models.detection import FasterRCNN
-from torchvision.models import ResNet50_Weights
 from torchvision.models import resnet
-from torchvision.models._api import WeightsEnum
-from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 from torchvision.models.detection.backbone_utils import resnet_fpn_backbone
 from torchvision.models.detection.rpn import RPNHead
 from torchvision.models.detection.rpn import AnchorGenerator
 from torchvision.ops import box_iou
 
 
-def custom_faster_rcnn(backbone_name: str = 'resnet50', 
-                       num_classes: int = 2, 
-                       focal_loss_args: dict = {}, 
+def custom_faster_rcnn(backbone_name: str = 'resnet50',
+                       num_classes: int = 2,
+                       focal_loss_args: dict = {},
                        custom_anchor_args: dict = {},
-                       state_dict_path = None):
+                       state_dict_path=None):
     """
     Getting a Custom Faster R-CNN with the specified backbone and focal loss for class imbalance.
 
@@ -29,14 +25,14 @@ def custom_faster_rcnn(backbone_name: str = 'resnet50',
         'alpha' : 0.025,
         'gamma' : 2.0
     - custom_anchor_args: Creating a custom anchor generator. There needs to be two arguments provided in key : value
-      format. 
+      format.
       Example:
         'anchor_sizes' : ((50,), (77,), (108,), (134,), (177,), (204,), (272,), (308,), (470,)),
         'aspect_ratios' : (1.0, 1.5, 2.0, 3.0)
     - state_dict_path: Path to previously trained model
 
     Returns:
-    - Custom Faster R-CNN          
+    - Custom Faster R-CNN model with the specified backbone and focal loss
     """
     # Create a mapping from backbone name to its weights enum class
     backbone_weights_map = {
@@ -46,18 +42,18 @@ def custom_faster_rcnn(backbone_name: str = 'resnet50',
         'resnet101': resnet.ResNet101_Weights,
         'resnet152': resnet.ResNet152_Weights,
     }
-    
+
     # Get the weights enum class for the specified backbone
     weights_enum = backbone_weights_map.get(backbone_name.lower())
-    
+
     # Checking if weights_enum exists
     if weights_enum is None:
         raise ValueError(f"Unsupported backbone: {backbone_name}. Supported backbones are: {list(backbone_weights_map.keys())}")
 
     # Initiating model_kwargs dictionary
     model_kwargs = {
-        'backbone' : resnet_fpn_backbone(backbone_name=backbone_name, weights=weights_enum.DEFAULT),
-        'num_classes' : num_classes
+        'backbone': resnet_fpn_backbone(backbone_name=backbone_name, weights=weights_enum.DEFAULT),
+        'num_classes': num_classes
     }
 
     # Checking focal loss params
@@ -72,12 +68,11 @@ def custom_faster_rcnn(backbone_name: str = 'resnet50',
         # Setting create model function for regular Faster RCNN
         create_model = FasterRCNN
 
-    # Checking if custom anchor arguments are there
-    if custom_anchor_args.get('anchor_sizes') is not None and custom_anchor_args.get('aspect_ratios') is not None:
-        # Create custom AnchorGenerator
+    # Check for custom anchor arguments and create an AnchorGenerator if available
+    if 'anchor_sizes' in custom_anchor_args and 'aspect_ratios' in custom_anchor_args:
         anchor_generator = AnchorGenerator(
-            sizes = anchor_sizes,
-            aspect_ratios = tuple([aspect_ratios for _ in range(5)])
+            sizes=custom_anchor_args['anchor_sizes'],
+            aspect_ratios=[custom_anchor_args['aspect_ratios']] * 5
         )
 
         # Create the RPN head
@@ -109,7 +104,7 @@ def custom_faster_rcnn(backbone_name: str = 'resnet50',
     # Reinitializing RPN if using custom_anchor_generator
     if 'rpn_anchor_generator' in model_kwargs.keys():
         reinitialize_rpn_head(model.rpn.head)
-    
+
     return model
 
 
@@ -124,7 +119,7 @@ def reinitialize_rpn_head(base_model):
     if hasattr(rpn_head, 'cls_logits'):
         nn.init.normal_(rpn_head.cls_logits.weight, mean=0.0, std=0.01)
         nn.init.constant_(rpn_head.cls_logits.bias, 0)
-    
+
     # Reinitialize bbox_pred layer
     if hasattr(rpn_head, 'bbox_pred'):
         nn.init.normal_(rpn_head.bbox_pred.weight, mean=0.0, std=0.01)
@@ -149,35 +144,35 @@ class FasterRCNNWithFocalLoss(FasterRCNN):
             # Transform images and targets
             # Model's transform module handles preprocessing (resizing, normalization, etc.)
             transformed_images, transformed_targets = self.transform(images, targets)
-            images_tensor = transformed_images.tensors
-            
+            # images_tensor = transformed_images.tensors
+
             # Extract features
             # Pass the transformed image tensor through the backbone to obtain features
             features = self.backbone(transformed_images.tensors)
             if isinstance(features, torch.Tensor):  # Ensure OrderedDict format
                 from collections import OrderedDict
                 features = OrderedDict([('0', features)])
-            
+
             # Generate proposals using the RPN
             # RPN uses the feature maps to generate object proposals
             # It also returns losses (rpn_losses) if targets are provided
             proposals, rpn_losses = self.rpn(transformed_images, features, transformed_targets)
 
             image_shapes = transformed_images.image_sizes
-            
+
             # ROI Pooling: pool features for each proposal
             # Pool the features corresponding to each proposal into a fixed-size feature map
             roi_pooled_features = self.roi_heads.box_roi_pool(features, proposals, image_shapes)
-            
+
             # Box Head: extract features for each ROI
             # Process the pooled features through the box head to obtain a refined feature representation
             box_features = self.roi_heads.box_head(roi_pooled_features)
-            
+
             # Box Predictor: get raw classification logits
             # Pass the box features through the box predictor to obtain raw classification logits
             # The box predictor returns a tuple: (classification_logits, bbox_regression outputs)
             classification_logits, _ = self.roi_heads.box_predictor(box_features)
-            
+
             # Match proposals to ground truth to generate labels for each proposal
             # For each image, match its proposals to ground truth boxes using an IoU threshold.
             # Matching function assigns a label to each proposal:
@@ -190,9 +185,9 @@ class FasterRCNNWithFocalLoss(FasterRCNN):
                 proposals_i = proposals[i]  # Proposals generated for image i
 
                 if proposals_i.shape[0] > 0:  # Ensure there are proposals
-                        matched_labels = self.match_proposals_for_image(proposals_i, gt_boxes, gt_labels)
-                        all_matched_labels.append(matched_labels)
-                    
+                    matched_labels = self.match_proposals_for_image(proposals_i, gt_boxes, gt_labels)
+                    all_matched_labels.append(matched_labels)
+
                 # matched_labels = match_proposals_for_image(proposals_i, gt_boxes, gt_labels, iou_threshold=0.5)
                 # all_matched_labels.append(matched_labels)
 
@@ -203,12 +198,12 @@ class FasterRCNNWithFocalLoss(FasterRCNN):
                 all_matched_labels = torch.cat(all_matched_labels, dim=0)
             else:
                 all_matched_labels = torch.tensor([], dtype=torch.int64, device=classification_logits.device)
-            
+
             # Compute Focal Loss using raw logits and matched labels
             # Focal loss is computed on the raw classification logits from the box predictor and the
             # aggregated ground truth labels (matched to proposals)
             focal_classification_loss = self.focal_loss_fn(classification_logits, all_matched_labels)
-            
+
             # Combine losses (RPN losses and focal classification loss)
             # Combine the RPN losses (from proposal generation) and our new focal classification loss
             losses = {}
@@ -223,27 +218,27 @@ class FasterRCNNWithFocalLoss(FasterRCNN):
     def match_proposals_for_image(self, proposals, gt_boxes, gt_labels, iou_threshold=0.5):
         """
         Match RPN proposals to ground truth using IoU-based matching.
-    
+
         Args:
             proposals (Tensor): [num_proposals, 4] Proposed boxes.
             gt_boxes (Tensor): [num_gt, 4] Ground truth boxes.
             gt_labels (Tensor): [num_gt] Ground truth labels.
             iou_threshold (float): IoU threshold for matching.
-    
+
         Returns:
             matched_labels (Tensor): Labels for each proposal (0 = background, 1+ = object class).
         """
         if gt_boxes.numel() == 0:  # No GT boxes in the image
             return torch.zeros(proposals.shape[0], dtype=torch.int64, device=proposals.device)
-    
+
         iou_matrix = box_iou(proposals, gt_boxes)  # Compute IoU between proposals and GT boxes
         max_iou, matched_idx = iou_matrix.max(dim=1)  # Get the best match for each proposal
-    
+
         # Assign background (0) to proposals with low IoU
         matched_labels = torch.full((proposals.shape[0],), 0, dtype=torch.int64, device=proposals.device)
         fg_indices = max_iou >= iou_threshold  # Proposals with IoU >= threshold are foreground
         matched_labels[fg_indices] = gt_labels[matched_idx[fg_indices]]
-    
+
         return matched_labels
 
 
@@ -254,11 +249,11 @@ class FocalLoss(nn.Module):
 
         Args:
         - alpha: Weighting factor for balancing class imbalance, typical values are around 0.25
-        - gamma: Focusing parameter that reduces the loss for well-classified examples, 
+        - gamma: Focusing parameter that reduces the loss for well-classified examples,
                  higher values (e.g., 2.0) increase the effect
         """
         super(FocalLoss, self).__init__()
-        
+
         # Store the hyperparameters for later use in the forward pass
         self.alpha = alpha  # Balances the importance between classes
         self.gamma = gamma  # Adjusts the rate at which easy examples are down-weighted
@@ -269,7 +264,7 @@ class FocalLoss(nn.Module):
         Compute the focal loss.
 
         Args:
-        - logits: Raw, unnormalized model outputs (before softmax), with shape [N, num_classes], 
+        - logits: Raw, unnormalized model outputs (before softmax), with shape [N, num_classes],
                   where N is the number of samples (or proposals) and num_classes is the number of classes
         - targets: Ground truth class labels as integers, with shape [N]
 
@@ -279,7 +274,7 @@ class FocalLoss(nn.Module):
         # Compute softmax probabilities
         # Converts raw scores into probabilities that sum to 1 for each sample
         log_probs = F.log_softmax(logits, dim=1)  # shape: [N, num_classes]
-        
+
         # Gather the probabilities for the true classes
         # For each sample, gather the probability corresponding to the true class.
         # targets.unsqueeze(1) converts the shape from [N] to [N, 1] so that .gather() can select
@@ -287,26 +282,26 @@ class FocalLoss(nn.Module):
         targets = targets.long()  # Ensure targets are long for indexing
         true_log_probs = log_probs.gather(1, targets.unsqueeze(1)).squeeze(1)  # shape: [N, 1]
 
-        probs = true_log_probs.exp() 
-        
+        probs = true_log_probs.exp()
+
         # Compute the focal loss scaling factor
         # (1 - true_class_probs) is high for misclassified (hard) examples and low for well-classified ones
         # Raising this term to the power gamma further emphasizes the effect on hard examples
         # Multiplying by alpha scales the loss for each class
         # focal_weight = self.alpha * (1 - true_class_probs) ** self.gamma
         focal_weight = (1 - probs) ** self.gamma
-        
+
         # Compute standard cross entropy loss (without reduction)
         # (i.e., compute loss per sample)
         # reduction='none' returns the loss for each sample
         # ce_loss = F.cross_entropy(logits, targets, reduction='none').unsqueeze(1)  # shape: [N, 1]
-        
+
         # Compute focal loss
         # Multiply the cross-entropy loss by the focal weighting factor
         # This means that the loss for easy examples (where true_class_probs is high) is down-weighted
         # loss = focal_weight * ce_loss
         loss = -self.alpha * focal_weight * true_log_probs
-        
+
         # return loss.mean()
         if self.reduction == 'mean':
             return loss.mean()

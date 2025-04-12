@@ -1,15 +1,15 @@
 import numpy as np
-import cv2 
+import cv2
 from glob import glob
 import matplotlib.pyplot as plt
-import math
 from pathlib import Path
 import json
 
-def custom_bounding_boxes(image_paths, 
-                          image_size: tuple = (1920, 1080), 
-                          percentiles_scales = [10, 25, 50, 75, 90],
-                          percentiles_ratios = [10, 50, 90]):
+
+def custom_bounding_boxes(image_paths,
+                          image_size: tuple = (1920, 1080),
+                          percentiles_scales=[10, 25, 50, 75, 90],
+                          percentiles_ratios=[10, 50, 90]):
     """
     Grabbing bounding boxes using percentiles.
 
@@ -73,8 +73,8 @@ def custom_bounding_boxes(image_paths,
     ratios = np.round(np.percentile(aspect_ratios, percentiles_ratios), 1)
     print(f"Ratios: {ratios}")
 
-    return {'anchor_sizes' : tuple([(item,) for item in scales]),
-            'aspect_ratios' : tuple(ratios)}
+    return {'anchor_sizes': tuple([(item,) for item in scales]),
+            'aspect_ratios': tuple(ratios)}
 
 
 def custom_normalization(image_paths):
@@ -95,10 +95,10 @@ def custom_normalization(image_paths):
     sample_size = int(0.05 * len(paths))
 
     # Randomly sample without replacement
-    sampled_paths = np.random.choice(len(paths), sample_size, replace = False)
+    sampled_paths = np.random.choice(len(paths), sample_size, replace=False)
 
     # Temp variable to holding pixel values
-    pixel_values = []
+    # pixel_values = []
 
     # Initialize variables for running stats
     mean = np.zeros(3)
@@ -108,7 +108,9 @@ def custom_normalization(image_paths):
     # Iterating through dataset
     for index in sampled_paths:
         # Read image (returns None if corrupted)
+        path = paths[index]
         img = cv2.imread(paths[index])
+
         if img is None:
             print(f"Skipping corrupted image: {path}")
             continue
@@ -132,12 +134,14 @@ def custom_normalization(image_paths):
 
     return mean.tolist(), std.tolist()
 
-#-----------------------------------------------------------------------------------
-#--- Helper Functions
-#-----------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------
+# --- Helper Functions
+# -----------------------------------------------------------------------------------
+
 
 def calc_geometric_mean(row):
     return np.sqrt(row[0] * row[1])
+
 
 def calc_aspect_ratio(row):
     return row[0]/row[1]

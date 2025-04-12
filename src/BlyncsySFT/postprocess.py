@@ -3,7 +3,8 @@ import torch
 from torchvision.ops import box_iou
 from sklearn.cluster import DBSCAN
 
-def nms(boxes = [], scores = [], iou_threshold = 0.5):
+
+def nms(boxes=[], scores=[], iou_threshold=0.5):
     """
     Perform Non-Maximum Suppression (NMS) on the list of bounding boxes and scores.
     This is performed under the assumption that all boxes and scores are from the same class.
@@ -58,7 +59,7 @@ def nms(boxes = [], scores = [], iou_threshold = 0.5):
     return filtered_boxes, filtered_scores
 
 
-def soft_nms(boxes = [], scores = [], iou_threshold=0.5, sigma=0.5, score_threshold=0.001, method='linear'):
+def soft_nms(boxes=[], scores=[], iou_threshold=0.5, sigma=0.5, score_threshold=0.001, method='linear'):
     """
     Perform Non-Maximum Suppression (NMS) on the list of bounding boxes and scores.
     This is performed under the assumption that all boxes and scores are from the same class.
@@ -120,7 +121,7 @@ def soft_nms(boxes = [], scores = [], iou_threshold=0.5, sigma=0.5, score_thresh
     return filtered_boxes, filtered_scores
 
 
-def dbsscan_clustering(boxes = [], scores = [], eps = 10, min_samples = 1):
+def dbsscan_clustering(boxes=[], scores=[], eps=10, min_samples=1):
     """
     Clustering bounding box coordinates using DBSCAN.
 
@@ -156,7 +157,7 @@ def dbsscan_clustering(boxes = [], scores = [], eps = 10, min_samples = 1):
     centroids = torch.stack([(boxes[:, 0] + boxes[:, 2]) / 2, (boxes[:, 1] + boxes[:, 3]) / 2], dim=1).numpy()
 
     # Perform DBSCAN clustering
-    db = DBSCAN(eps = eps, min_samples = min_samples).fit(centroids)
+    db = DBSCAN(eps=eps, min_samples=min_samples).fit(centroids)
     labels = db.labels_
 
     # Group boxes into clusters
@@ -174,7 +175,7 @@ def dbsscan_clustering(boxes = [], scores = [], eps = 10, min_samples = 1):
     return clusters, noise
 
 
-def fuse_clusters(boxes = [], scores = [], clusters = [], noise_indices = []):
+def fuse_clusters(boxes=[], scores=[], clusters=[], noise_indices=[]):
     """
     Fuse boxes within each cluster by averaging their coordinates and scores.
 

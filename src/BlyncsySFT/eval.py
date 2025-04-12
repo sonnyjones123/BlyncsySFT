@@ -1,11 +1,11 @@
 import numpy as np
 from collections import defaultdict
-from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 
-def compute_mAP(ground_truths, predictions, iou_thresholds: list = []): 
+
+def compute_mAP(ground_truths, predictions, iou_thresholds: list = []):
     """
-    Calculating mAP for predicted boxes and ground truth labels. 
+    Calculating mAP for predicted boxes and ground truth labels.
 
     Args:
     - ground_truths: COCO ground truths file with bounding boxes in [xmin, ymin, width, height] format.
@@ -14,7 +14,7 @@ def compute_mAP(ground_truths, predictions, iou_thresholds: list = []):
 
     Returns:
     - mAP score for predicted boxes and ground truths
-    """            
+    """
     # Initializing COCOeval
     coco_dt = ground_truths.loadRes(predictions)
     coco_eval = COCOeval(ground_truths, coco_dt, 'bbox')
@@ -25,12 +25,12 @@ def compute_mAP(ground_truths, predictions, iou_thresholds: list = []):
     coco_eval.evaluate()
     coco_eval.accumulate()
     coco_eval.summarize()
-    
+
     # Returning All Stats
     return coco_eval.stats
 
 
-def evaluate_custom_mAP(predictions, ground_truths, iou_threshold = 0.5, iou_function : str = 'IoU'):
+def evaluate_custom_mAP(predictions, ground_truths, iou_threshold=0.5, iou_function: str = 'IoU'):
     """
     Calculating mAP for predicted boxes and ground truth labels using a custom iou_function.
     Implemented IoU Functions:
@@ -47,7 +47,7 @@ def evaluate_custom_mAP(predictions, ground_truths, iou_threshold = 0.5, iou_fun
     - iou_function: the custom IoU function for making decision for mAP (Default: IoU)
 
     Returns:
-    - mAP score for predicted boxes and ground truths based on custom IoU Function    
+    - mAP score for predicted boxes and ground truths based on custom IoU Function
     """
     # Group predictions and ground truths by image_id
     predictions_grouped = group_by_image_id(predictions)
@@ -55,7 +55,7 @@ def evaluate_custom_mAP(predictions, ground_truths, iou_threshold = 0.5, iou_fun
 
     # Creating list to hold average percisions
     aps = []
-    
+
     # Iterating through ground truths
     for img_id in ground_truths_grouped.keys():
         # Getting image preds and ground truths
@@ -70,7 +70,7 @@ def evaluate_custom_mAP(predictions, ground_truths, iou_threshold = 0.5, iou_fun
     return np.mean(aps)
 
 
-def evaluate_image_mAP(predictions, ground_truths, iou_threshold = 0.5, iou_function : str = 'IoU'):
+def evaluate_image_mAP(predictions, ground_truths, iou_threshold=0.5, iou_function: str = 'IoU'):
     """
     Calculating mAP for predicted boxes and ground truth labels using a custom iou_function.
     Implemented IoU Functions:
@@ -95,7 +95,7 @@ def evaluate_image_mAP(predictions, ground_truths, iou_threshold = 0.5, iou_func
 
     # Creating list to hold average percisions
     aps = []
-    
+
     # Iterating through ground truths
     for img_id in ground_truths_grouped.keys():
         # Getting image preds and ground truths
@@ -104,14 +104,14 @@ def evaluate_image_mAP(predictions, ground_truths, iou_threshold = 0.5, iou_func
 
         # Computing average precision
         ap = compute_ap(img_predictions, img_ground_truths, iou_threshold, iou_function)
-        aps.append({'image_id' : img_id,
-                    'ap' : ap})
+        aps.append({'image_id': img_id,
+                    'ap': ap})
 
     # Returning image IoU scores
     return aps
 
 
-def compute_ap(predictions, ground_truths, iou_threshold = 0.5, iou_function : str = 'IoU'):
+def compute_ap(predictions, ground_truths, iou_threshold=0.5, iou_function: str = 'IoU'):
     """
     Calculating mAP for predicted boxes and ground truth labels using a custom iou_function.
     Implemented IoU Functions:
@@ -128,7 +128,7 @@ def compute_ap(predictions, ground_truths, iou_threshold = 0.5, iou_function : s
     - iou_function: the custom IoU function for making decision for mAP (Default: IoU)
 
     Returns:
-    - mAP score for predicted boxes and ground truths based on custom IoU Function    
+    - mAP score for predicted boxes and ground truths based on custom IoU Function
     """
     # Choosing custom function
     if iou_function.lower() == 'iou':
@@ -235,7 +235,7 @@ def compute_precision_recall(matched_pairs, predictions, ground_truths):
     precision = tp / (tp + fp) if (tp + fp) > 0 else 0
     recall = tp / (tp + fn) if (tp + fn) > 0 else 0
 
-    return precision, recall    
+    return precision, recall
 
 
 def calculate_iou_reg(box1, box2):
@@ -247,7 +247,7 @@ def calculate_iou_reg(box1, box2):
     - box2: the bounding box coordinates in a list: [xmin, ymin, width, height]
 
     Returns:
-    - iou score for box1 and box2   
+    - iou score for box1 and box2
     """
     # Reformatting into box coordinates
     box1 = [box1[0], box1[1], box1[0] + box1[2], box1[1] + box1[3]]
@@ -262,7 +262,7 @@ def calculate_iou_reg(box1, box2):
     # Calculate the area of intersection
     intersection_area = max(0, x2 - x1) * max(0, y2 - y1)
 
-     # Calculate the area of both boxes
+    # Calculate the area of both boxes
     box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
     box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
@@ -284,7 +284,7 @@ def calculate_giou(box1, box2):
     - box2: the bounding box coordinates in a list: [xmin, ymin, width, height]
 
     Returns:
-    - giou score for box1 and box2   
+    - giou score for box1 and box2
     """
     # Reformatting into box coordinates
     box1 = [box1[0], box1[1], box1[0] + box1[2], box1[1] + box1[3]]
@@ -299,7 +299,7 @@ def calculate_giou(box1, box2):
     # Calculate the area of intersection
     intersection_area = max(0, x2 - x1) * max(0, y2 - y1)
 
-     # Calculate the area of both boxes
+    # Calculate the area of both boxes
     box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
     box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
@@ -322,7 +322,7 @@ def calculate_giou(box1, box2):
     return giou
 
 
-def calculate_soft_iou(box1, box2, sigma = 1.0):
+def calculate_soft_iou(box1, box2, sigma=1.0):
     """
     Calculates Soft IoU with the provided bounding boxes.
 
@@ -331,7 +331,7 @@ def calculate_soft_iou(box1, box2, sigma = 1.0):
     - box2: the bounding box coordinates in a list: [xmin, ymin, width, height]
 
     Returns:
-    - siou score for box1 and box2   
+    - siou score for box1 and box2
     """
     # Reformatting into box coordinates
     box1 = [box1[0], box1[1], box1[0] + box1[2], box1[1] + box1[3]]
@@ -346,7 +346,7 @@ def calculate_soft_iou(box1, box2, sigma = 1.0):
     # Calculate the area of intersection
     intersection_area = max(0, x2 - x1) * max(0, y2 - y1)
 
-     # Calculate the area of both boxes
+    # Calculate the area of both boxes
     box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
     box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
@@ -371,8 +371,8 @@ def calculate_diou(box1, box2):
     - box2: the bounding box coordinates in a list: [xmin, ymin, width, height]
 
     Returns:
-    - diou score for box1 and box2   
-    """  
+    - diou score for box1 and box2
+    """
     # Reformatting into box coordinates
     box1 = [box1[0], box1[1], box1[0] + box1[2], box1[1] + box1[3]]
     box2 = [box2[0], box2[1], box2[0] + box2[2], box2[1] + box2[3]]
@@ -386,7 +386,7 @@ def calculate_diou(box1, box2):
     # Calculate the area of intersection
     intersection_area = max(0, x2 - x1) * max(0, y2 - y1)
 
-     # Calculate the area of both boxes
+    # Calculate the area of both boxes
     box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
     box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
@@ -398,7 +398,7 @@ def calculate_diou(box1, box2):
 
     # Calculate the center distance
     center_distance = ((box1[0] + box1[2]) / 2 - (box2[0] + box2[2]) / 2)**2 + \
-                       ((box1[1] + box1[3]) / 2 - (box2[1] + box2[3]) / 2)**2
+        ((box1[1] + box1[3]) / 2 - (box2[1] + box2[3]) / 2)**2
 
     # Calculate the diagonal length of the smallest enclosing box
     enclose_x1 = min(box1[0], box2[0])
@@ -422,7 +422,7 @@ def calculate_ciou(box1, box2):
     - box2: the bounding box coordinates in a list: [xmin, ymin, width, height]
 
     Returns:
-    - ciou score for box1 and box2   
+    - ciou score for box1 and box2
     """
     # Reformatting into box coordinates
     box1 = [box1[0], box1[1], box1[0] + box1[2], box1[1] + box1[3]]
@@ -437,7 +437,7 @@ def calculate_ciou(box1, box2):
     # Calculate the area of intersection
     intersection_area = max(0, x2 - x1) * max(0, y2 - y1)
 
-     # Calculate the area of both boxes
+    # Calculate the area of both boxes
     box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
     box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
 
@@ -449,7 +449,7 @@ def calculate_ciou(box1, box2):
 
     # Calculate the center distance
     center_distance = ((box1[0] + box1[2]) / 2 - (box2[0] + box2[2]) / 2)**2 + \
-                       ((box1[1] + box1[3]) / 2 - (box2[1] + box2[3]) / 2)**2
+        ((box1[1] + box1[3]) / 2 - (box2[1] + box2[3]) / 2)**2
 
     # Calculate the diagonal length of the smallest enclosing box
     enclose_x1 = min(box1[0], box2[0])
