@@ -7,11 +7,11 @@ from torchvision import datasets, transforms
 from torch.utils.data import DataLoader
 from pycocotools.coco import COCO
 from torch.optim.lr_scheduler import StepLR
-from models import custom_faster_rcnn
-from format import format_target, reformat_predictions
-from eval import compute_mAP
+from BlyncsySFT.models import custom_faster_rcnn
+from BlyncsySFT.format import format_target, reformat_predictions
+from BlyncsySFT.eval import compute_mAP
 from pathlib import Path
-from augment import createAugmentedData, augmentation_types
+from BlyncsySFT.augment import createAugmentedData, augmentation_types
 
 
 def run_auto_training_pipeline(project_dir, cfg, verbose):

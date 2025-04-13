@@ -75,7 +75,12 @@ def score_images(model, data_loader, alpha=0.7):
         saliency_map = np.max(np.abs(gradients), axis=0)
 
         # Normalize the saliency map for visualization
-        saliency_map = (saliency_map - saliency_map.min()) / (saliency_map.max() - saliency_map.min())
+        saliency_min = saliency_map.min()
+        saliency_max = saliency_map.max()
+        if saliency_max != saliency_min:
+            saliency_map = (saliency_map - saliency_min) / (saliency_max - saliency_min)
+        else:
+            saliency_map = np.zeros_like(saliency_map)
 
         # Calculating bbox
         pred_bbox = torch.tensor([expected_bbox(saliency_map)], dtype=torch.float).to(device)
@@ -162,6 +167,12 @@ def expected_bbox(saliency_map, k=1):
     Returns:
         bbox: (x_min, y_min, x_max, y_max)
     """
+    total_saliency = np.sum(saliency_map)
+    if total_saliency == 0:
+        # Return default center box or full image box if no saliency is detected
+        h, w = saliency_map.shape
+        return (w//4, h//4, 3*w//4, 3*h//4)
+
     # Normalize saliency to a probability distribution
     p = saliency_map / np.sum(saliency_map)
 

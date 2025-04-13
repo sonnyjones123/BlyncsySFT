@@ -113,7 +113,7 @@ def reinitialize_rpn_head(base_model):
     Reinitializes the final layers of the RPN head (cls_logits and bbox_pred).
     """
     # Getting RPN head from base model
-    rpn_head = base_model.rpn_head
+    rpn_head = base_model
 
     # Reinitialize cls_logits layer
     if hasattr(rpn_head, 'cls_logits'):

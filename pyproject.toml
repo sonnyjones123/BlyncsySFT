@@ -6,37 +6,46 @@ build-backend = "setuptools.build_meta"
 name = "BlyncsySFT"
 version = "0.1.0"
 authors = [
-    {name = "Sonny Jones", email = "sonny.jones@utah.edu"},
-    {name = "Anthony Le", email = "anthony.le@utah.edu"},
-    {name = "Rohit Raj", email = "rohitrraj284@gmail.com"}
+    { name = "Sonny Jones", email = "sonny.jones@utah.edu" },
+    { name = "Anthony Le", email = "anthony.le@utah.edu" },
+    { name = "Rohit Raj", email = "rohitrraj284@gmail.com" },
 ]
 maintainers = [
-    {name = "Sonny Jones", email = "sonny.jones@utah.edu"}
+    { name = "Sonny Jones", email = "sonny.jones@utah.edu" }
 ]
-description = "Supervised Fine-Tuning Package for Blynscy"
-readme = {file = "README.md", content-type = "text/markdown"}
+description = "Supervised Fine-Tuning Package for Blyncsy"
+readme = { file = "README.md", content-type = "text/markdown" }
+
+requires-python = ">=3.6"
+
 dependencies = [
-    'torch >= 2.6.0', 
-    'torchvision >= 2.6.0', 
-    'numpy >= ',
-    'tqdm >= 4.67.1', 
-    'pycocotools >= 2.0.8',
-    'opencv-python >= 4.11.00.86',
-    'click >= 8.1.3',
-    'PyYAML' >= 6.0,
-    'scikit-learn >= 0.23.2',
-    'python-dotenv >= 1.1.0',
-    'albumentations >= 2.0.5',
-    'pillow >= 9.0.1',
-    'matplotlib >= 3.7.1'
+    "torch >= 2.6.0",
+    "torchvision >= 0.15.0",
+    "numpy >= 1.21.0",
+    "tqdm >= 4.67.1",
+    "pycocotools >= 2.0.8",
+    "opencv-python >= 4.11.0.86",
+    "click >= 8.1.3",
+    "PyYAML >= 6.0",
+    "scikit-learn >= 0.23.2",
+    "python-dotenv >= 1.1.0",
+    "albumentations >= 2.0.5",
+    "pillow >= 9.0.1",
+    "matplotlib >= 3.7.1",
 ]
+
 classifiers = [
     "Programming Language :: Python :: 3",
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-requires_python = '>=3.6'
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-dir]
+"" = "src"
 
 [project.scripts]
-yourpackage = "BlyncsySFT.cli:cli"
+blyncsysft = "BlyncsySFT.cli:cli"

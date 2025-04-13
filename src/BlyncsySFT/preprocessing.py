@@ -89,7 +89,10 @@ def custom_normalization(image_paths):
     - std of 3 channels
     """
     # Grabbing files using glob
-    paths = glob(f'./{(Path(image_paths) / "*.jpg")}')
+    paths = glob(str(Path(image_paths) / "*.jpg"))
+
+    if len(paths) == 0:
+        raise ValueError(f"No images found in path: {image_paths}")
 
     # Calculate 5% of the total number of images
     sample_size = int(0.05 * len(paths))

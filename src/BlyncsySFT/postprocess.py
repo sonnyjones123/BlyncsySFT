@@ -36,27 +36,24 @@ def nms(boxes=[], scores=[], iou_threshold=0.5):
 
     # Sort the boxes by confidence scores in descending order
     sorted_indices = torch.argsort(scores, descending=True)
-    boxes = boxes[sorted_indices]
-    scores = scores[sorted_indices]
-
     keep = []
-    while boxes.size(0) > 0:
-        # Keep the box with the highest score
-        keep.append(sorted_indices[0].item())
 
-        # Compute IoU of the highest score box with the rest
-        ious = box_iou(boxes[0:1], boxes[1:])
+    while sorted_indices.numel() > 0:
+        i = sorted_indices[0].item()
+        keep.append(i)
 
-        # Remove boxes with IoU greater than the threshold
-        mask = ious[0] < iou_threshold
-        boxes = boxes[1:][mask]
-        sorted_indices = sorted_indices[1:][mask]
+        if sorted_indices.numel() == 1:
+            break
 
-    # Filter boxes and scores using the kept indices
-    filtered_boxes = boxes[keep]
-    filtered_scores = scores[keep]
+        current_box = boxes[i].unsqueeze(0)
+        remaining_indices = sorted_indices[1:]
+        remaining_boxes = boxes[remaining_indices]
 
-    return filtered_boxes, filtered_scores
+        ious = box_iou(current_box, remaining_boxes).squeeze(0)
+        mask = ious < iou_threshold
+        sorted_indices = remaining_indices[mask]
+
+    return boxes[keep], scores[keep]
 
 
 def soft_nms(boxes=[], scores=[], iou_threshold=0.5, sigma=0.5, score_threshold=0.001, method='linear'):
