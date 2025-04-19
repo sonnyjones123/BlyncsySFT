@@ -32,7 +32,11 @@ def train(project_dir, verbose):
         'WORKERS',
         'NUM_CLASSES',
         'BACKBONE',
-        'SAVE_EVERY'
+        'SAVE_EVERY',
+        'TRAIN_IMAGE_PATH',
+        'TRAIN_ANNOT_PATH',
+        'VAL_IMAGE_PATH',
+        'VAL_ANNOT_PATH',
     ]
 
     try:
