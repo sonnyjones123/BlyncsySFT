@@ -9,7 +9,8 @@ import json
 def custom_bounding_boxes(image_paths,
                           image_size: tuple = (1920, 1080),
                           percentiles_scales=[10, 25, 50, 75, 90],
-                          percentiles_ratios=[10, 50, 90]):
+                          percentiles_ratios=[10, 50, 90],
+                          plot = False):
     """
     Grabbing bounding boxes using percentiles.
 
@@ -55,26 +56,35 @@ def custom_bounding_boxes(image_paths,
     print("Median aspect ratio:", np.median(aspect_ratios))
 
     # Plotting
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 2, 1)
-    plt.hist(areas, bins=50)
-    plt.title("Object Areas")
+    if plot:
+        plt.figure(figsize=(12, 4))
+        plt.subplot(1, 2, 1)
+        plt.hist(areas, bins=50)
+        plt.title("Object Areas")
 
-    plt.subplot(1, 2, 2)
-    plt.hist(aspect_ratios, bins=50)
-    plt.title("Aspect Ratios (width/height)")
-    plt.show()
+        plt.subplot(1, 2, 2)
+        plt.hist(aspect_ratios, bins=50)
+        plt.title("Aspect Ratios (width/height)")
+        plt.show()
 
     # Recommending anchors based on percentiles
     area_percentiles = np.round(np.percentile(areas, percentiles_scales))
     scales = np.sqrt(area_percentiles)
     print(f"Anchor Sizes: {scales}")
 
+    # Recommending aspect ratios based on percentiles
     ratios = np.round(np.percentile(aspect_ratios, percentiles_ratios), 1)
-    print(f"Ratios: {ratios}")
+
+    # Round down the minimum and round up the maximum to nearest 0.5
+    min_val = np.floor(min(ratios) / 0.5) * 0.5
+    max_val = np.ceil(max(ratios) / 0.5) * 0.5
+
+    # Generate the list of values
+    degraded_ratios = np.arange(min_val, max_val + 0.5, 0.5)
+    print(f"Ratios: {degraded_ratios}")
 
     return {'anchor_sizes': tuple([(item,) for item in scales]),
-            'aspect_ratios': tuple(ratios)}
+            'aspect_ratios': tuple(degraded_ratios)}
 
 
 def custom_normalization(image_paths):
