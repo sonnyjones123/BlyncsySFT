@@ -121,6 +121,10 @@ def plot_saliency_bbox(model, image, target, save_path=None):
         target: Targets from dataset
         save_path: Which file path to save the image to
     """
+    # Moving model to device and moving to eval mode
+    model.to(device)
+    model.eval()
+
     # Load the image for visualization
     to_pil = ToPILImage()
     image_rgb = to_pil(image)

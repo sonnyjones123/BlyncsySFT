@@ -68,8 +68,8 @@ def custom_bounding_boxes(image_paths,
         plt.show()
 
     # Recommending anchors based on percentiles
-    area_percentiles = np.round(np.percentile(areas, percentiles_scales))
-    scales = np.sqrt(area_percentiles)
+    area_percentiles = np.percentile(areas, percentiles_scales)
+    scales = np.round(np.sqrt(area_percentiles))
     print(f"Anchor Sizes: {scales}")
 
     # Recommending aspect ratios based on percentiles
@@ -144,6 +144,9 @@ def custom_normalization(image_paths):
 
     # Final std = sqrt(running variance)
     std = np.sqrt(std)
+
+    print(f"Means: {mean.tolist()}")
+    print(f"STDs: {std.tolist()}")
 
     return mean.tolist(), std.tolist()
 

@@ -48,10 +48,10 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
     # Augmentation Parameters
     use_augmentations = cfg.get("USE_AUGMENTATIONS", False)
     shuffle_dataset = cfg.get('SHUFFLE_DATASET', True)
-    augmentation_split = cfg.get('AUGMENTATION_SPLIT', 0.5)
+    augmentation_prob = cfg.get('AUGMENTATION_PROB', 0.5)
     subset_size = cfg.get('SUBSET_SIZE', None)
     subset_size = int(subset_size) if subset_size is not None else None
-    mixup_lambda = cfg.get('MIXUP_LAMBDA', 0.2)
+    mixup_lambda = cfg.get('MIXUP_LAMBDA', 0.5)
     random_seed = cfg.get('RANDOM_SEED', None)
     set_random_seed = cfg.get('SET_RANDOM_SEED', False)
 
@@ -99,7 +99,7 @@ def run_auto_training_pipeline(project_dir, cfg, verbose):
             set_random_seed=set_random_seed,
             transforms=None,  # uses default: ToTensorV2
             shuffle_dataset=shuffle_dataset,
-            augmentation_split=augmentation_split,
+            aug_probability=augmentation_prob,
             subset_size=subset_size,  # or None for full dataset
             mixup_lambda=mixup_lambda
         )
@@ -288,10 +288,10 @@ def run_training_pipeline(model, project_dir, cfg, verbose=True):
     # Augmentation Parameters
     use_augmentations = cfg.get("USE_AUGMENTATIONS", False)
     shuffle_dataset = cfg.get('SHUFFLE_DATASET', True)
-    augmentation_split = cfg.get('AUGMENTATION_SPLIT', 0.5)
+    augmentation_prob = cfg.get('AUGMENTATION_PROB', 0.5)
     subset_size = cfg.get('SUBSET_SIZE', None)
     subset_size = int(subset_size) if subset_size is not None else None
-    mixup_lambda = cfg.get('MIXUP_LAMBDA', 0.2)
+    mixup_lambda = cfg.get('MIXUP_LAMBDA', 0.5)
     random_seed = cfg.get('RANDOM_SEED', None)
     set_random_seed = cfg.get('SET_RANDOM_SEED', False)
 
@@ -324,7 +324,7 @@ def run_training_pipeline(model, project_dir, cfg, verbose=True):
             set_random_seed=set_random_seed,
             transforms=None,  # uses default: ToTensorV2
             shuffle_dataset=shuffle_dataset,
-            augmentation_split=augmentation_split,
+            aug_probability=augmentation_prob,
             subset_size=subset_size,  # or None for full dataset
             mixup_lambda=mixup_lambda
         )
