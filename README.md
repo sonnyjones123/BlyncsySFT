@@ -55,10 +55,10 @@ pip install .
     NUM_CLASSES=2
     BACKBONE=resnet50
     SAVE_EVERY=5
-    TRAIN_IMAGE_PATH=images/train
-    TRAIN_ANNOT_PATH=annotations/train.json
-    VAL_IMAGE_PATH=images/validation
-    VAL_ANNOT_PATH=annotations/validation.json
+    TRAIN_IMAGE_PATH="images/train"
+    TRAIN_ANNOT_PATH="annotations/train.json"
+    VAL_IMAGE_PATH="images/validation"
+    VAL_ANNOT_PATH="annotations/validation.json"
     ```
 
 ## 🧪 Usage
