@@ -66,7 +66,7 @@ pip install .
 Run training directly from the command line:
 
 ```bash
-python -m BlyncsySFT.cli train /path/to/your_project/ --verbose
+python -m blyncsysft train /path/to/your_project/ --verbose
 ```
 
 This command:
